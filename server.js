@@ -15,6 +15,7 @@
 
 require('dotenv').config();
 const express = require('express');
+const cors = require('cors');
 const { StreamClient } = require('@stream-io/node-sdk');
 
 const PORT = process.env.PORT ?? 3000;
@@ -31,6 +32,7 @@ if (!STREAM_API_KEY || !STREAM_API_SECRET) {
 
 const streamClient = new StreamClient(STREAM_API_KEY, STREAM_API_SECRET);
 const app = express();
+app.use(cors());
 app.use(express.json());
 
 // ─── Health check ─────────────────────────────────────────────────────────────
