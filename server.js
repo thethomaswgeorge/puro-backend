@@ -46,7 +46,7 @@ app.get('/health', (_req, res) => {
 // Body: { userId: string, name?: string, image?: string }
 // Returns: { userId: string, token: string }
 app.post('/stream/bootstrap', async (req, res) => {
-    const { userId, name, image } = req.body ?? {};
+    const { userId, name, username, image } = req.body ?? {};
 
     if (!userId) {
         return res.status(400).json({ error: 'userId is required' });
@@ -56,6 +56,7 @@ app.post('/stream/bootstrap', async (req, res) => {
         // Upsert the user in Stream
         await streamClient.user(userId).getOrCreate({
             ...(name ? { name } : {}),
+            ...(username ? { username } : {}),
             ...(image ? { image } : {}),
         });
 
@@ -128,31 +129,6 @@ app.post('/stream/unfollow', async (req, res) => {
     } catch (err) {
         console.error('[unfollow]', err);
         return res.status(500).json({ error: err.message ?? 'Unfollow failed' });
-    }
-});
-
-// ─── GET /stream/users ────────────────────────────────────────────────────────
-// Query: { excludeUserId?, limit?, searchTerm? }
-// Returns an array of Stream user objects for the "suggested profiles" feature.
-// Uses the server-side client so no client token permission issues arise.
-app.get('/stream/users', async (req, res) => {
-    const { excludeUserId, limit = '20', searchTerm } = req.query;
-
-    try {
-        const filter = {};
-        if (excludeUserId) filter.id = { $ne: excludeUserId };
-        if (searchTerm) filter.name = { $autocomplete: searchTerm };
-
-        const { results } = await streamClient.queryUsers(
-            filter,
-            { last_active: -1 },
-            { limit: Number(limit) }
-        );
-
-        return res.json({ results });
-    } catch (err) {
-        console.error('[users]', err);
-        return res.status(500).json({ error: err.message ?? 'Failed to query users' });
     }
 });
 
