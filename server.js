@@ -16,7 +16,7 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const { StreamClient } = require('@stream-io/node-sdk');
+const stream = require('getstream');
 
 const PORT = process.env.PORT ?? 3000;
 const STREAM_API_KEY = process.env.STREAM_API_KEY;
@@ -30,7 +30,9 @@ if (!STREAM_API_KEY || !STREAM_API_SECRET) {
     process.exit(1);
 }
 
-const streamClient = new StreamClient(STREAM_API_KEY, STREAM_API_SECRET);
+// Server-side client — uses API secret, never sent to the app
+const streamClient = stream.connect(STREAM_API_KEY, STREAM_API_SECRET);
+
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -52,21 +54,17 @@ app.post('/stream/bootstrap', async (req, res) => {
 
     try {
         // Upsert the user in Stream
-        await streamClient.upsertUsers([
-            {
-                id: userId,
-                ...(name ? { name } : {}),
-                ...(image ? { image } : {}),
-            },
-        ]);
+        await streamClient.user(userId).getOrCreate({
+            ...(name ? { name } : {}),
+            ...(image ? { image } : {}),
+        });
 
         // Self-follow so the user's own posts appear on their timeline feed
         const timelineFeed = streamClient.feed('timeline', userId);
         await timelineFeed.follow('user', userId);
 
-        // Generate a short-lived user token (24 h)
-        const expiresAt = Math.floor(Date.now() / 1000) + 60 * 60 * 24;
-        const token = streamClient.generateUserToken({ user_id: userId, exp: expiresAt });
+        // Generate a signed token for the client (safe to send — no secret inside)
+        const token = streamClient.createUserToken(userId);
 
         return res.json({ userId, token });
     } catch (err) {
