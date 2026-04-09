@@ -131,6 +131,31 @@ app.post('/stream/unfollow', async (req, res) => {
     }
 });
 
+// ─── GET /stream/users ────────────────────────────────────────────────────────
+// Query: { excludeUserId?, limit?, searchTerm? }
+// Returns an array of Stream user objects for the "suggested profiles" feature.
+// Uses the server-side client so no client token permission issues arise.
+app.get('/stream/users', async (req, res) => {
+    const { excludeUserId, limit = '20', searchTerm } = req.query;
+
+    try {
+        const filter = {};
+        if (excludeUserId) filter.id = { $ne: excludeUserId };
+        if (searchTerm) filter.name = { $autocomplete: searchTerm };
+
+        const { results } = await streamClient.queryUsers(
+            filter,
+            { last_active: -1 },
+            { limit: Number(limit) }
+        );
+
+        return res.json({ results });
+    } catch (err) {
+        console.error('[users]', err);
+        return res.status(500).json({ error: err.message ?? 'Failed to query users' });
+    }
+});
+
 // ─── Start ────────────────────────────────────────────────────────────────────
 app.listen(PORT, () => {
     console.log(`\n🚀  Puro backend running on http://localhost:${PORT}\n`);
