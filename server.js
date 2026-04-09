@@ -58,6 +58,10 @@ app.post('/stream/bootstrap', async (req, res) => {
             },
         ]);
 
+        // Self-follow so the user's own posts appear on their timeline feed
+        const timelineFeed = streamClient.feed('timeline', userId);
+        await timelineFeed.follow('user', userId);
+
         // Generate a short-lived user token (24 h)
         const expiresAt = Math.floor(Date.now() / 1000) + 60 * 60 * 24;
         const token = streamClient.generateUserToken({ user_id: userId, exp: expiresAt });
